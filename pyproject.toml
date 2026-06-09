@@ -1,0 +1,18 @@
+[project]
+name = "ifont-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.136.3",
+    "opencv-python>=4.13.0.92",
+    "paddleocr>=3.6.0",
+    "pillow>=12.2.0",
+    "python-multipart>=0.0.9",
+    "uvicorn[standard]>=0.30",
+]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
