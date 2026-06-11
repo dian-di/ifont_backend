@@ -1,17 +1,54 @@
-"""
+﻿"""
 Handwritten text extraction using PaddleOCR + BiRefNet + CLAHE + ConnectedComponent filtering.
 
 Pipeline: Image -> OCR Service -> Text Regions -> CLAHE Enhancement -> Matting Service -> RGBA
 """
 
+import importlib.util
 import os
-from pathlib import Path
+import sys
 
 import cv2
 import numpy as np
 import torch
+
+
+def _patch_paddle_bilinear_case() -> None:
+    """Fix paddlepaddle 3.3.1 Windows wheel: bilinear.py / Bilinear.py case mismatch.
+    Also disable OneDNN on Windows to avoid NotImplementedError in PIR attribute conversion.
+    """
+    if sys.platform != "win32":
+        return
+    os.environ.setdefault("FLAGS_use_mkldnn", "0")
+    try:
+        spec = importlib.util.find_spec("paddle.nn.initializer")
+        if spec is None or not spec.submodule_search_locations:
+            return
+        init_dir = list(spec.submodule_search_locations)[0]
+        init_file = os.path.join(init_dir, "__init__.py")
+        if not os.path.isfile(init_file):
+            return
+        with open(init_file) as f:
+            for line in f:
+                s = line.strip()
+                if s.startswith("from .") and "bilinear" in s.lower() and "import" in s:
+                    mod_name = s.split("from .")[1].split(" import")[0].strip()
+                    target = os.path.join(init_dir, mod_name + ".py")
+                    if os.path.exists(target):
+                        return
+                    for entry in os.listdir(init_dir):
+                        if entry.lower() == (mod_name + ".py").lower() and entry != mod_name + ".py":
+                            os.rename(os.path.join(init_dir, entry), target)
+                            return
+                    return
+    except Exception:
+        pass
+
+
+_patch_paddle_bilinear_case()
+
 from paddleocr import PaddleOCR
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from torchvision import transforms
 
 # ---------------------------------------------------------------------------
